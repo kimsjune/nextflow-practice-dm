@@ -1,0 +1,51 @@
+flowchart TD
+    p0((Channel.fromFilePairs))
+    p1((Channel.fromPath))
+    p2((Channel.fromFilePairs))
+    p3((Channel.fromFilePairs))
+    p4(( ))
+    p5[STAR_INDEX]
+    p6([collect])
+    p7[STAR_ALIGN]
+    p8[SAMTOOLS_VIEW_SORT]
+    p9([collect])
+    p10[HTSEQ_COUNT]
+    p11(( ))
+    p12[BT2_INDEX]
+    p13([collect])
+    p14[BT2_ALIGN]
+    p15[SAMTOOLS_VIEW_BT2]
+    p16[REPENRICH_SETUP]
+    p17[REPENRICH_SUBSET]
+    p18[REPENRICH_SORT_INDEX]
+    p19([collect])
+    p20([collect])
+    p21[REPENRICH]
+    p22(( ))
+    p0 -->|fasta_ch| p5
+    p1 -->|gtf_ch| p5
+    p2 -->|sample_ch| p7
+    p3 -->|rmsk_ch| p16
+    p4 -->|read_length| p5
+    p5 --> p6
+    p6 --> p7
+    p7 --> p8
+    p8 --> p10
+    p1 -->|gtf_ch| p9
+    p9 --> p10
+    p10 --> p11
+    p0 -->|fasta_ch| p12
+    p12 --> p13
+    p13 --> p14
+    p2 -->|sample_ch| p14
+    p14 --> p15
+    p15 --> p17
+    p0 -->|fasta_ch| p16
+    p16 --> p20
+    p17 --> p18
+    p18 --> p21
+    p3 -->|rmsk_ch| p19
+    p19 --> p21
+    p20 --> p21
+    p17 --> p21
+    p21 --> p22
