@@ -1,0 +1,25 @@
+flowchart TD
+    p0((Channel.fromFilePairs))
+    p1((Channel.fromPath))
+    p2((Channel.fromFilePairs))
+    p3(( ))
+    p4[STAR_INDEX]
+    p5(( ))
+    p6([collect])
+    p7[STAR_ALIGN]
+    p8[SAMTOOLS_VIEW_SORT]
+    p9([collect])
+    p10[HTSEQ_COUNT]
+    p11(( ))
+    p0 -->|fasta_ch| p4
+    p1 -->|gtf_ch| p4
+    p2 -->|sample_ch| p7
+    p3 -->|read_length| p4
+    p4 --> p6
+    p4 --> p5
+    p6 --> p7
+    p7 --> p8
+    p8 --> p10
+    p1 -->|gtf_ch| p9
+    p9 --> p10
+    p10 --> p11

@@ -2,3 +2,7 @@
 !.gitignore
 !*.config
 !*.nf
+!LICENSE
+!README
+!*.mmd
+!*.html

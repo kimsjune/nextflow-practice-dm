@@ -17,27 +17,12 @@ gtf_ch = channel.fromPath(params.gtf) // I don't need the prefix from this file
     //tuple(it.name.split('\\.')[0],it)
     //}// this returns a tuple with sample name and paths --- looks complicateds
 sample_ch = channel.fromFilePairs(params.sample, size: 1) // probably the easiest way to make a tuple even though there are no paired reads? 
-//rmsk_ch = channel.fromFilePairs(params.rmsk, size:1)
+rmsk_ch = channel.fromFilePairs(params.rmsk, size:1)
 
 //starFasta_ch = channel.fromPath("$baseDir/index/genomes/mm10.fa")
 //gtf_ch = channel.fromPath("$baseDir/index/genes/gencode.vM22.annotation.gtf")
 ///reads_ch = channel.of(params.reads)
-process FASTQC {
-    publishDir "$projectDir/fastqc", mode:"copy"
-    cpus 8
 
-    input:
-        tuple val(sample_id), path(fastq)
-    output:
-        path "fastqc_out/*", emit: dir // the * at the end is crucial 
-        tuple val(sample_id), path("fastqc_out/*_fastqc.html"), emit: html
-        tuple val(sample_id), path("fastqc_out/*_fastqc.zip"), emit: zip
-    script:
-    """
-    mkdir fastqc_out
-    fastqc -f fastq -t $task.cpus $fastq -o fastqc_out
-    """
-}
 process STAR_INDEX {
     publishDir "$projectDir/index/STAR"
     cpus 8
@@ -78,11 +63,10 @@ process STAR_ALIGN {
             // This means that the code must be run separately to know what outputs (and their names) will be generated. 
             
         tuple val(sample_id), path("*Aligned.out.sam"), emit : bam
-        //tuple val(sample_id), path("*Log.final.out"), emit: log
+        //tuple val(sample_id), path("*Log.final.out")
         //tuple val(sample_id), path("*Log.out")
         //tuple val(sample_id), path("*Log.progress.out")
         //tuple val(sample_id), path("*SJ.out.tab")
-        path "log/*", emit:logDir
 
         // not really important to check if other files were generated. Makes dag look simpler.
 
@@ -94,8 +78,6 @@ process STAR_ALIGN {
   //  def prefix = task.ext.prefix ?: "${sample_id}[0]"
     """
     STAR --runMode alignReads --runThreadN $task.cpus --genomeDir $index --readFilesCommand zcat --readFilesIn ${sample_path[0]} --outSAMstrandField intronMotif --outFilterIntronMotifs RemoveNoncanonical --outFileNamePrefix $sample_id
-    mkdir log 
-    mv *Log.final.out log/
     """
 
 }
@@ -254,23 +236,8 @@ process REPENRICH {
     // simply output to . (current directory i.e. work) which will be copied to publishDir anyway. This process can't find the output files if it's another directory
 }
 
-process MULTIQC {
-    publishDir "$projectDir/multiqc"
-
-    input:
-        path('*')
-
-    output:
-        path "multiqc_report.html"
-    script:
-    // the default output file name is known to be "multiqc_report.html" so there's no need for >
-    """
-    multiqc . 
-    """
-}
-
 workflow {
-    FASTQC(sample_ch)
+    //sample_ch.view()
     STAR_INDEX(fasta_ch, gtf_ch, params.readLength)
     STAR_ALIGN(STAR_INDEX.out.index.collect(),sample_ch)
         // .collect() is the KEY. Or else it returns a queue channel which gets used up after one task 
@@ -280,15 +247,15 @@ workflow {
         // STARalign(ch_STARgenomeGenerate.out.collect(), sample_ch) fails
         // I guess it's too redundant anyway?
     HTSEQ_COUNT(SAMTOOLS_VIEW_SORT.out.sortedBam, gtf_ch.collect()) //.collect seems to be the magic operator to iterate over multiple files when there are many vs. one inputs
-    //BT2_INDEX(fasta_ch)
-    //BT2_ALIGN(sample_ch, BT2_INDEX.out.collect())
-    //SAMTOOLS_VIEW_BT2(BT2_ALIGN.out)
-    //REPENRICH_SETUP(rmsk_ch, fasta_ch)
-    //REPENRICH_SUBSET(SAMTOOLS_VIEW_BT2.out)
-    //REPENRICH_SORT_INDEX(REPENRICH_SUBSET.out)
+    BT2_INDEX(fasta_ch)
+    BT2_ALIGN(sample_ch, BT2_INDEX.out.collect())
+    SAMTOOLS_VIEW_BT2(BT2_ALIGN.out)
+    REPENRICH_SETUP(rmsk_ch, fasta_ch)
+    REPENRICH_SUBSET(SAMTOOLS_VIEW_BT2.out)
+    REPENRICH_SORT_INDEX(REPENRICH_SUBSET.out)
     //REPENRICHSETUP(rmsk_ch,fasta_ch)
-    //REPENRICH(rmsk_ch.collect(), REPENRICH_SETUP.out.collect(), REPENRICH_SORT_INDEX.out, //REPENRICH_SUBSET.out) // anythingl
-    MULTIQC(FASTQC.out.dir.mix(STAR_ALIGN.out.logDir).collect())
+    REPENRICH(rmsk_ch.collect(), REPENRICH_SETUP.out.collect(), REPENRICH_SORT_INDEX.out, REPENRICH_SUBSET.out) // anythingl
+    
 
 
                                                                
